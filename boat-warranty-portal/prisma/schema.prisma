@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ProductRegistry {
+  serialNumber           String   @id @map("serial_number")
+  modelName               String   @map("model_name")
+  purchaseDate            DateTime @map("purchase_date")
+  warrantyDurationMonths  Int      @map("warranty_duration_months")
+
+  warrantyDocuments WarrantyDocument[]
+  repairHistory     RepairHistory[]
+
+  @@map("product_registry")
+}
+
+model WarrantyDocument {
+  documentId   String   @id @default(uuid()) @map("document_id")
+  serialNumber String   @map("serial_number")
+  gcsFileUrl   String   @map("gcs_file_url")
+  fileSizeKb   Int      @map("file_size_kb")
+  uploadedBy   String   @map("uploaded_by")
+  uploadedAt   DateTime @default(now()) @map("uploaded_at")
+
+  product ProductRegistry @relation(fields: [serialNumber], references: [serialNumber])
+
+  @@map("warranty_documents")
+}
+
+model RepairHistory {
+  repairId          String   @id @default(uuid()) @map("repair_id")
+  serialNumber       String   @map("serial_number")
+  repairDate          DateTime @map("repair_date")
+  issueDescription     String   @map("issue_description")
+  serviceCenterCode   String   @map("service_center_code")
+  createdBy            String   @map("created_by")
+
+  product ProductRegistry @relation(fields: [serialNumber], references: [serialNumber])
+
+  @@map("repair_history")
+}
