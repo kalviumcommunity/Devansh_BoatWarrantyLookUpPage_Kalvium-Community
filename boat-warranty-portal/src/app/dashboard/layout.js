@@ -1,14 +1,10 @@
-import Sidebar from "../../components/Sidebar";
-import Topbar from "../../components/Topbar";
+import Sidebar from "@/components/Sidebar";
 
 export default function DashboardLayout({ children }) {
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#f3f4f6" }}>
+    <div className="dash-shell">
       <Sidebar />
-      <div style={{ flex: 1 }}>
-        <Topbar />
-        <main style={{ padding: "24px" }}>{children}</main>
-      </div>
+      <div className="dash-main">{children}</div>
     </div>
   );
 }
