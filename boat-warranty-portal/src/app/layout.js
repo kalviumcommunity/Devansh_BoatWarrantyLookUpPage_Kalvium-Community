@@ -1,3 +1,5 @@
+import GlobalStyles from "@/components/GlobalStyles";
+
 export const metadata = {
   title: "Boat Warranty Portal",
   description: "Warranty portal dashboard and management app",
@@ -6,7 +8,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <GlobalStyles />
+        {children}
+      </body>
     </html>
   );
 }
