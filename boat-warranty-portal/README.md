@@ -74,3 +74,15 @@ npm run db:seed     # Insert demo products and repair records
 ```
 
 Do not commit `.env` or `gcp-service-account.json`. Both are ignored by Git.
+
+## Google Cloud Storage
+
+Phase 3 uses Google Cloud Storage for warranty PDFs. Add these values to `.env` when cloud storage access is available:
+
+```env
+GCP_PROJECT_ID=your-google-cloud-project-id
+GCP_BUCKET_NAME=your-bucket-name
+GOOGLE_APPLICATION_CREDENTIALS=./gcp-service-account.json
+```
+
+Place the service account file at the project root. Do not commit it.
