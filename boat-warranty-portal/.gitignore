@@ -43,3 +43,6 @@ next-env.d.ts
 /src/generated/prisma
 gcp-service-account.json
 .env
+
+# Phased planning docs (local only)
+PERSON3-PHASED-PLAN.md
