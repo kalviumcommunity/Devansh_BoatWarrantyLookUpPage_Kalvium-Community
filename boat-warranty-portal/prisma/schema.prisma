@@ -25,6 +25,7 @@ model WarrantyDocument {
   fileSizeKb   Int      @map("file_size_kb")
   uploadedBy   String   @map("uploaded_by")
   uploadedAt   DateTime @default(now()) @map("uploaded_at")
+  deletedAt    DateTime? @map("deleted_at")
 
   product ProductRegistry @relation(fields: [serialNumber], references: [serialNumber])
 

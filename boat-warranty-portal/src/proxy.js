@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/auth";
+import { getRequestUser } from "@/lib/auth";
 
 export function proxy(request) {
-  const authorization = request.headers.get("authorization");
-  const token = authorization?.startsWith("Bearer ")
-    ? authorization.slice(7)
-    : request.cookies.get("token")?.value;
-
-  if (!token || !verifyToken(token)) {
+  if (!getRequestUser(request)) {
     if (request.nextUrl.pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

@@ -16,7 +16,10 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 export async function getProductBySerial(serialNumber) {
   return prisma.productRegistry.findUnique({
     where: { serialNumber },
-    include: { warrantyDocuments: true, repairHistory: true },
+    include: {
+      warrantyDocuments: { where: { deletedAt: null } },
+      repairHistory: true,
+    },
   });
 }
 
@@ -41,8 +44,31 @@ export async function createRepairRecord(data) {
   return prisma.repairHistory.create({ data });
 }
 
+export async function getRepairRecord(repairId) {
+  return prisma.repairHistory.findUnique({ where: { repairId } });
+}
+
+export async function updateRepairRecord(repairId, data) {
+  return prisma.repairHistory.update({ where: { repairId }, data });
+}
+
 export async function uploadWarrantyDoc(data) {
   return prisma.warrantyDocument.create({ data });
+}
+
+export async function getWarrantyDocument(documentId) {
+  return prisma.warrantyDocument.findUnique({ where: { documentId } });
+}
+
+export async function replaceWarrantyDoc(documentId, data) {
+  return prisma.warrantyDocument.update({ where: { documentId }, data });
+}
+
+export async function softDeleteWarrantyDoc(documentId) {
+  return prisma.warrantyDocument.update({
+    where: { documentId },
+    data: { deletedAt: new Date() },
+  });
 }
 
 export { prisma };
