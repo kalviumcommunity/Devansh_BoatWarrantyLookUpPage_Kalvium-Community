@@ -21,9 +21,13 @@ export async function uploadPDF(fileName, fileBuffer) {
     resumable: false,
   });
 
-  return `https://storage.googleapis.com/${file.bucket.name}/${encodeURIComponent(fileName)}`;
+  return `gs://${file.bucket.name}/${fileName}`;
 }
 
 export async function deletePDF(fileName) {
   await getBucket().file(fileName).delete();
+}
+
+export function gcsUrlToFileName(gcsFileUrl) {
+  return gcsFileUrl.replace(/^gs:\/\/[^/]+\//, "");
 }

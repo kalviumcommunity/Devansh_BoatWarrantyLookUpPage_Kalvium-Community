@@ -1,44 +1,59 @@
 import { NextResponse } from "next/server";
 import { uploadPDF } from "@/lib/gcs";
-
-const maxFileSize = 10 * 1024 * 1024;
+import { getProductBySerial, uploadWarrantyDoc } from "@/lib/db";
+import { getRequestUser } from "@/lib/auth";
+import { validateSerialNumber, validatePdfFile, isPdfBuffer } from "@/utils/validation";
 
 export async function POST(request) {
   try {
     const formData = await request.formData();
     const file = formData.get("file");
+    const serialNumber = formData.get("serialNumber")?.trim().toUpperCase();
 
-    if (!file || typeof file.arrayBuffer !== "function") {
+    if (!validateSerialNumber(serialNumber)) {
       return NextResponse.json(
-        { error: "A PDF file is required" },
+        { error: "A valid serial number is required" },
         { status: 400 },
       );
     }
 
-    if (file.size > maxFileSize) {
+    const product = await getProductBySerial(serialNumber);
+    if (!product) {
       return NextResponse.json(
-        { error: "File must be 10 MB or smaller" },
+        { error: "No registered product matches that serial number" },
+        { status: 404 },
+      );
+    }
+
+    const fileError = validatePdfFile(file);
+    if (fileError) {
+      return NextResponse.json({ error: fileError }, { status: 400 });
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    if (!isPdfBuffer(buffer)) {
+      return NextResponse.json(
+        { error: "The file is not a valid PDF" },
         { status: 400 },
       );
     }
 
-    if (
-      file.type !== "application/pdf" ||
-      !file.name.toLowerCase().endsWith(".pdf")
-    ) {
-      return NextResponse.json(
-        { error: "Only PDF files are allowed" },
-        { status: 400 },
-      );
-    }
-
+    const user = getRequestUser(request);
     const fileName = `warranties/${crypto.randomUUID()}-${file.name}`;
-    const url = await uploadPDF(
-      fileName,
-      Buffer.from(await file.arrayBuffer()),
-    );
+    const gcsFileUrl = await uploadPDF(fileName, buffer);
 
-    return NextResponse.json({ fileName, url });
+    const document = await uploadWarrantyDoc({
+      serialNumber,
+      gcsFileUrl,
+      fileSizeKb: Math.ceil(file.size / 1024),
+      uploadedBy: user.userId,
+    });
+
+    return NextResponse.json({
+      documentId: document.documentId,
+      serialNumber: document.serialNumber,
+      uploadedAt: document.uploadedAt,
+    });
   } catch (error) {
     console.error("Warranty upload failed:", error);
     return NextResponse.json(

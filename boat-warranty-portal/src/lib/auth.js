@@ -22,6 +22,18 @@ export function verifyToken(token) {
   }
 }
 
+export function getRequestToken(request) {
+  const authorization = request.headers.get("authorization");
+  return authorization?.startsWith("Bearer ")
+    ? authorization.slice(7)
+    : request.cookies.get("token")?.value;
+}
+
+export function getRequestUser(request) {
+  const token = getRequestToken(request);
+  return token ? verifyToken(token) : null;
+}
+
 export function isAdmin(email, password) {
   return email === adminEmail && password === adminPassword;
 }
