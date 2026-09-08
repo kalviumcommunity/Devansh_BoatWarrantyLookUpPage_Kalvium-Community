@@ -15,28 +15,63 @@ import {
   WrenchIcon,
 } from "@/components/Icons";
 
-const KNOWN_SERIAL = "DT8S12345678";
-
-const REPAIRS = [
-  { id: "SRV1234567", date: "10 Feb 2025", issue: "Sound distortion in left earcup", center: "boAt Service Center - Mumbai" },
-  { id: "SRV1234567", date: "10 Feb 2025", issue: "Mic not working", center: "boAt Service Center - Delhi" },
-  { id: "SRV1234567", date: "10 Feb 2025", issue: "Sound distortion in right earcup", center: "boAt Service Center - Kochi" },
-  { id: "SRV1234567", date: "10 Feb 2025", issue: "Sound not working", center: "boAt Service Center - Pune" },
-];
+const PER_PAGE = 5;
 
 export default function WarrantyPage() {
   const [serial, setSerial] = useState("");
-  const [status, setStatus] = useState("idle"); // idle | found | notfound | empty
+  const [status, setStatus] = useState("idle"); // idle | found | notfound | empty | loading
+  const [product, setProduct] = useState(null);
+  const [repairs, setRepairs] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalRepairs, setTotalRepairs] = useState(0);
 
   function handleSubmit(e) {
     e.preventDefault();
     const val = serial.trim().toUpperCase();
-
     if (!val) {
       setStatus("empty");
       return;
     }
-    setStatus(val === KNOWN_SERIAL ? "found" : "notfound");
+
+    setStatus("loading");
+    // Lookup warranty
+    fetch(`/api/warranty/lookup?serialNumber=${encodeURIComponent(val)}`)
+      .then(async (res) => {
+        if (res.status === 400) {
+          setStatus("empty");
+          setProduct(null);
+          setRepairs([]);
+          return;
+        }
+        if (res.status === 404) {
+          setStatus("notfound");
+          setProduct(null);
+          setRepairs([]);
+          return;
+        }
+        const data = await res.json();
+        setProduct(data);
+        setStatus("found");
+        setPage(1);
+        // fetch repair history page 1
+        return fetch(`/api/repair-history/${encodeURIComponent(val)}?page=1`);
+      })
+      .then(async (r) => {
+        if (!r) return;
+        if (r.status === 404) {
+          setRepairs([]);
+          setTotalRepairs(0);
+          return;
+        }
+        const json = await r.json();
+        setRepairs(json.records || []);
+        setTotalRepairs(json.total || 0);
+      })
+      .catch(() => {
+        setStatus("notfound");
+        setProduct(null);
+        setRepairs([]);
+      });
   }
 
   return (
@@ -77,7 +112,10 @@ export default function WarrantyPage() {
             <br />
             <span className="red">Warranty Status</span>
           </h1>
-          <p>Enter your product details to check warranty status and repair history</p>
+          <p>
+            Enter your product details to check warranty status and repair
+            history
+          </p>
         </div>
 
         <div className="serial-card">
@@ -88,7 +126,9 @@ export default function WarrantyPage() {
                 <ScanIcon />
               </span>
               <input
-                className={status === "empty" ? "field-input field-error" : "field-input"}
+                className={
+                  status === "empty" ? "field-input field-error" : "field-input"
+                }
                 type="text"
                 value={serial}
                 onChange={(e) => setSerial(e.target.value)}
@@ -105,7 +145,14 @@ export default function WarrantyPage() {
                 <span>No product found with this serial number</span>
               </div>
             )}
-            <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 14 }}>
+            {status === "loading" && (
+              <div className="hint-text">Loading...</div>
+            )}
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: "100%", marginTop: 14 }}
+            >
               Check Warranty
             </button>
           </form>
@@ -121,10 +168,25 @@ export default function WarrantyPage() {
               strokeLinecap="round"
             />
             <rect x="38" y="96" width="36" height="58" rx="18" fill="#0A0A0A" />
-            <rect x="156" y="96" width="36" height="58" rx="18" fill="#0A0A0A" />
+            <rect
+              x="156"
+              y="96"
+              width="36"
+              height="58"
+              rx="18"
+              fill="#0A0A0A"
+            />
             <circle cx="56" cy="128" r="9" fill="#2A2A2C" />
             <circle cx="174" cy="128" r="9" fill="#2A2A2C" />
-            <text x="115" y="132" fontFamily="Sora" fontWeight="700" fontSize="11" fill="#F5F5F5" textAnchor="middle">
+            <text
+              x="115"
+              y="132"
+              fontFamily="Sora"
+              fontWeight="700"
+              fontSize="11"
+              fill="#F5F5F5"
+              textAnchor="middle"
+            >
               boAt
             </text>
           </svg>
@@ -137,42 +199,96 @@ export default function WarrantyPage() {
           <section className="result-card">
             <div className="result-inner">
               <div className="result-thumb">
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <svg
+                  width="30"
+                  height="30"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                >
                   <path d="M4 14v-2a8 8 0 0116 0v2" />
                   <rect x="2" y="14" width="5" height="7" rx="2" />
                   <rect x="17" y="14" width="5" height="7" rx="2" />
                 </svg>
               </div>
               <div className="result-meta" style={{ flex: 1, minWidth: 180 }}>
-                <strong>boAt Rockerz 450</strong>
-                <span>Serial Number: {KNOWN_SERIAL}</span>
+                <strong>{product?.modelName || "—"}</strong>
+                <span>Serial Number: {product?.serialNumber}</span>
                 <span>Product Category : Headphones</span>
                 <span>Colour : Active Black</span>
               </div>
               <div className="result-stat">
                 <div className="k">Warranty Status</div>
-                <div className="v green" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <div
+                  className="v green"
+                  style={{ display: "flex", alignItems: "center", gap: 6 }}
+                >
                   <ShieldIcon width="14" height="14" />
-                  Active
+                  {product?.status || "—"}
                 </div>
               </div>
               <div className="result-stat">
                 <div className="k">Warranty Start Date</div>
-                <div className="v">15 May 2024</div>
+                <div className="v">
+                  {product?.purchaseDate
+                    ? new Date(product.purchaseDate).toLocaleDateString()
+                    : "—"}
+                </div>
               </div>
               <div className="result-stat">
                 <div className="k">Warranty End Date</div>
-                <div className="v green">14 May 2026</div>
-                <div style={{ fontSize: "0.75rem", color: "var(--boat-muted)", marginTop: 2 }}>
-                  Remaining <span style={{ color: "var(--boat-green)", fontWeight: 600 }}>285 Days</span>
+                <div className="v green">
+                  {product?.expiryDate
+                    ? new Date(product.expiryDate).toLocaleDateString()
+                    : "—"}
+                </div>
+                <div
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "var(--boat-muted)",
+                    marginTop: 2,
+                  }}
+                >
+                  {product?.expiryDate && (
+                    <>
+                      Remaining{" "}
+                      <span
+                        style={{ color: "var(--boat-green)", fontWeight: 600 }}
+                      >
+                        {Math.max(
+                          0,
+                          Math.ceil(
+                            (new Date(product.expiryDate) - new Date()) /
+                              (1000 * 60 * 60 * 24),
+                          ),
+                        )}{" "}
+                        Days
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="result-stat" style={{ textAlign: "center" }}>
-                <FileIcon width="26" height="26" style={{ stroke: "#C6151C" }} />
-                <div style={{ fontSize: "0.8125rem", fontWeight: 600, marginTop: 4 }}>
+                <FileIcon
+                  width="26"
+                  height="26"
+                  style={{ stroke: "#C6151C" }}
+                />
+                <div
+                  style={{
+                    fontSize: "0.8125rem",
+                    fontWeight: 600,
+                    marginTop: 4,
+                  }}
+                >
                   View Warranty Document
                 </div>
-                <div style={{ fontSize: "0.6875rem", color: "var(--boat-muted)" }}>(PDF)</div>
+                <div
+                  style={{ fontSize: "0.6875rem", color: "var(--boat-muted)" }}
+                >
+                  (PDF)
+                </div>
               </div>
             </div>
           </section>
@@ -185,7 +301,15 @@ export default function WarrantyPage() {
                   <WrenchIcon width="16" height="16" />
                   Repair History
                 </h3>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.8125rem", color: "var(--boat-muted)" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: "0.8125rem",
+                    color: "var(--boat-muted)",
+                  }}
+                >
                   Show
                   <select
                     style={{
@@ -215,19 +339,23 @@ export default function WarrantyPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {REPAIRS.map((r, i) => (
-                      <tr key={i}>
-                        <td>{r.id}</td>
-                        <td>{r.date}</td>
-                        <td>{r.issue}</td>
+                    {repairs.map((r) => (
+                      <tr key={r.repairId}>
+                        <td>{r.repairId}</td>
+                        <td>{new Date(r.repairDate).toLocaleDateString()}</td>
+                        <td>{r.issueDescription}</td>
                         <td>
-                          <span className="status-pill completed">Completed</span>
+                          <span className="status-pill completed">
+                            Completed
+                          </span>
                         </td>
-                        <td>{r.center}</td>
+                        <td>{r.serviceCenterCode}</td>
                         <td>
                           <span
                             className="link-red"
-                            onClick={() => alert("Opening service detail (frontend demo).")}
+                            onClick={() =>
+                              alert("Opening service detail (frontend demo).")
+                            }
                           >
                             View Details
                           </span>
@@ -247,13 +375,83 @@ export default function WarrantyPage() {
                   color: "var(--boat-muted)",
                 }}
               >
-                <span>Showing 1 to 5 of 12 entries</span>
+                <span>
+                  Showing {repairs.length ? (page - 1) * PER_PAGE + 1 : 0} to{" "}
+                  {Math.min(page * PER_PAGE, totalRepairs)} of {totalRepairs}{" "}
+                  entries
+                </span>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button className="btn btn-outline" style={{ padding: "6px 11px" }}>‹</button>
-                  <button className="btn btn-primary" style={{ padding: "6px 12px" }}>1</button>
-                  <button className="btn btn-outline" style={{ padding: "6px 12px" }}>2</button>
-                  <button className="btn btn-outline" style={{ padding: "6px 12px" }}>3</button>
-                  <button className="btn btn-outline" style={{ padding: "6px 11px" }}>›</button>
+                  <button
+                    className="btn btn-outline"
+                    style={{ padding: "6px 11px" }}
+                    onClick={async () => {
+                      if (page <= 1) return;
+                      const newPage = page - 1;
+                      setPage(newPage);
+                      const res = await fetch(
+                        `/api/repair-history/${encodeURIComponent(product.serialNumber)}?page=${newPage}`,
+                      );
+                      if (res.ok) {
+                        const j = await res.json();
+                        setRepairs(j.records || []);
+                        setTotalRepairs(j.total || 0);
+                      }
+                    }}
+                  >
+                    ‹
+                  </button>
+                  {Array.from({
+                    length: Math.max(1, Math.ceil(totalRepairs / PER_PAGE)),
+                  })
+                    .slice(0, 5)
+                    .map((_, idx) => {
+                      const p = idx + 1;
+                      return (
+                        <button
+                          key={p}
+                          className={
+                            p === page ? "btn btn-primary" : "btn btn-outline"
+                          }
+                          style={{ padding: "6px 12px" }}
+                          onClick={async () => {
+                            setPage(p);
+                            const res = await fetch(
+                              `/api/repair-history/${encodeURIComponent(product.serialNumber)}?page=${p}`,
+                            );
+                            if (res.ok) {
+                              const j = await res.json();
+                              setRepairs(j.records || []);
+                              setTotalRepairs(j.total || 0);
+                            }
+                          }}
+                        >
+                          {p}
+                        </button>
+                      );
+                    })}
+                  <button
+                    className="btn btn-outline"
+                    style={{ padding: "6px 11px" }}
+                    onClick={async () => {
+                      const maxPage = Math.max(
+                        1,
+                        Math.ceil(totalRepairs / PER_PAGE),
+                      );
+                      if (page >= maxPage) return;
+                      const newPage = page + 1;
+                      setPage(newPage);
+                      const res = await fetch(
+                        `/api/repair-history/${encodeURIComponent(product.serialNumber)}?page=${newPage}`,
+                      );
+                      if (res.ok) {
+                        const j = await res.json();
+                        setRepairs(j.records || []);
+                        setTotalRepairs(j.total || 0);
+                      }
+                    }}
+                  >
+                    ›
+                  </button>
                 </div>
               </div>
             </div>
@@ -267,32 +465,58 @@ export default function WarrantyPage() {
             <div className="boat-logo on-dark" style={{ fontSize: "1.3rem" }}>
               bo<span className="accent">A</span>t
             </div>
-            <p style={{ fontSize: "0.8125rem", color: "#8B8B8E", marginTop: 12, maxWidth: 260 }}>
-              India&apos;s #1 audio and wearable brand. Plugged in, tuned in, always switched on.
+            <p
+              style={{
+                fontSize: "0.8125rem",
+                color: "#8B8B8E",
+                marginTop: 12,
+                maxWidth: 260,
+              }}
+            >
+              India&apos;s #1 audio and wearable brand. Plugged in, tuned in,
+              always switched on.
             </p>
           </div>
           <div>
             <h5>Support</h5>
             <ul>
-              <li><Link href="#">Contact Us</Link></li>
-              <li><Link href="#">FAQs</Link></li>
-              <li><Link href="#">Warranty &amp; Claim</Link></li>
+              <li>
+                <Link href="#">Contact Us</Link>
+              </li>
+              <li>
+                <Link href="#">FAQs</Link>
+              </li>
+              <li>
+                <Link href="#">Warranty &amp; Claim</Link>
+              </li>
             </ul>
           </div>
           <div>
             <h5>Company</h5>
             <ul>
-              <li><Link href="#">About boAt</Link></li>
-              <li><Link href="#">Newsroom</Link></li>
-              <li><Link href="#">Careers</Link></li>
+              <li>
+                <Link href="#">About boAt</Link>
+              </li>
+              <li>
+                <Link href="#">Newsroom</Link>
+              </li>
+              <li>
+                <Link href="#">Careers</Link>
+              </li>
             </ul>
           </div>
           <div>
             <h5>Legal</h5>
             <ul>
-              <li><Link href="#">Terms of Service</Link></li>
-              <li><Link href="#">Privacy Policy</Link></li>
-              <li><Link href="#">Shipping Policy</Link></li>
+              <li>
+                <Link href="#">Terms of Service</Link>
+              </li>
+              <li>
+                <Link href="#">Privacy Policy</Link>
+              </li>
+              <li>
+                <Link href="#">Shipping Policy</Link>
+              </li>
             </ul>
           </div>
         </div>
