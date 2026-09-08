@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  validateSerialNumber,
-  getProductBySerial,
-  computeExpiry,
-} from "@/lib/db";
+import { getProductBySerial, computeExpiry } from "@/lib/db";
+import { validateSerialNumber } from "@/utils/validation";
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
