@@ -2,25 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  GridIcon,
-  SearchIcon,
-  UploadIcon,
-  BoxIcon,
-  WrenchIcon,
-  UsersIcon,
-  SettingsIcon,
-  LogoutIcon,
-} from "./Icons";
+import { GridIcon, UploadIcon, BoxIcon, WrenchIcon, LogoutIcon } from "./Icons";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: GridIcon },
-  { href: "/dashboard/warranty-lookups", label: "Warranty Lookups", icon: SearchIcon },
-  { href: "/dashboard/upload-warranties", label: "Upload Warranties", icon: UploadIcon },
+  {
+    href: "/dashboard/upload-warranties",
+    label: "Upload Warranties",
+    icon: UploadIcon,
+  },
   { href: "/dashboard/products", label: "Products", icon: BoxIcon },
-  { href: "/dashboard/repair-history", label: "Repair History", icon: WrenchIcon },
-  { href: "/dashboard/users", label: "Users", icon: UsersIcon },
-  { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon },
+  {
+    href: "/dashboard/repair-history",
+    label: "Repair History",
+    icon: WrenchIcon,
+  },
 ];
 
 export default function Sidebar() {
@@ -52,7 +48,11 @@ export default function Sidebar() {
       </nav>
 
       <div className="dash-sidebar-footer">
-        <Link href="/signin" className="dash-nav-item" style={{ color: "#4B4F58" }}>
+        <Link
+          href="/signin"
+          className="dash-nav-item"
+          style={{ color: "#4B4F58" }}
+        >
           <LogoutIcon />
           Logout
         </Link>

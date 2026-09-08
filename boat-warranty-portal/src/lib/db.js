@@ -13,6 +13,12 @@ const prisma =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
+export function computeExpiry(purchaseDate, warrantyDurationMonths) {
+  const expiry = new Date(purchaseDate);
+  expiry.setMonth(expiry.getMonth() + warrantyDurationMonths);
+  return expiry;
+}
+
 export async function getProductBySerial(serialNumber) {
   return prisma.productRegistry.findUnique({
     where: { serialNumber },
