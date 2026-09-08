@@ -1,75 +1,151 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Topbar from "@/components/Topbar";
-import { SearchIcon, PlusIcon, HeadphonesIcon } from "@/components/Icons";
+import { SearchIcon, HeadphonesIcon, FileIcon } from "@/components/Icons";
 
-const PRODUCTS = [
-  { name: "boAt Rockerz 450", category: "Headphones", count: 84 },
-  { name: "boAt Airdopes 141", category: "True Wireless Earbuds", count: 156 },
-  { name: "boAt Nirvana Ion", category: "TWS Earbuds", count: 42 },
-  { name: "boAt Stone 1200", category: "Bluetooth Speaker", count: 65 },
-  { name: "boAt Rockerz 550", category: "Headphones", count: 71 },
-  { name: "boAt Airdopes 441", category: "True Wireless Earbuds", count: 98 },
-  { name: "boAt Wave Flex", category: "Smartwatch", count: 33 },
-  { name: "boAt Immortal 1300", category: "Gaming Headset", count: 27 },
-];
-
-const CATEGORIES = ["All categories", "Headphones", "True Wireless Earbuds", "TWS Earbuds", "Bluetooth Speaker", "Smartwatch", "Gaming Headset"];
+function warrantyStatus(purchaseDate, warrantyDurationMonths) {
+  const expiry = new Date(purchaseDate);
+  expiry.setMonth(expiry.getMonth() + warrantyDurationMonths);
+  return expiry >= new Date() ? "ACTIVE" : "EXPIRED";
+}
 
 export default function ProductsPage() {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All categories");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [searched, setSearched] = useState(false);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return PRODUCTS.filter((p) => {
-      const matchesText = !q || p.name.toLowerCase().includes(q);
-      const matchesCat = category === "All categories" || p.category === category;
-      return matchesText && matchesCat;
-    });
-  }, [query, category]);
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) return;
+
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await fetch(
+          `/api/admin/products?search=${encodeURIComponent(trimmed)}`,
+        );
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Search failed");
+        setResults(data.results || []);
+      } catch (err) {
+        setError(err.message);
+        setResults([]);
+      } finally {
+        setLoading(false);
+        setSearched(true);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
   return (
     <>
-      <Topbar title="Products" subtitle="Manage the boAt product catalogue" />
+      <Topbar
+        title="Products"
+        subtitle="Search the registered product catalogue by serial number"
+      />
       <div className="dash-content">
         <div className="panel">
           <div className="page-toolbar">
             <div className="toolbar-search">
-              <span className="icon"><SearchIcon /></span>
+              <span className="icon">
+                <SearchIcon />
+              </span>
               <input
                 type="text"
-                placeholder="Search products"
+                placeholder="Search by exact serial number"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value.toUpperCase();
+                  setQuery(value);
+                  if (!value.trim()) {
+                    setResults([]);
+                    setError("");
+                    setSearched(false);
+                  }
+                }}
               />
             </div>
-            <select className="select-chip" value={category} onChange={(e) => setCategory(e.target.value)}>
-              {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-            </select>
-            <button className="btn btn-primary" onClick={() => alert("Add product form would open here (frontend demo).")}>
-              <PlusIcon />
-              Add Product
-            </button>
           </div>
+
+          {error && (
+            <div className="error-box show" style={{ margin: "0 20px 16px" }}>
+              {error}
+            </div>
+          )}
+
           <div className="products-grid">
-            {filtered.map((p) => (
-              <div className="product-card" key={p.name}>
-                <div className="product-thumb"><HeadphonesIcon width="34" height="34" /></div>
-                <div className="product-body">
-                  <div className="pname">{p.name}</div>
-                  <div className="pcat">{p.category}</div>
-                  <div className="product-foot">
-                    <span className="product-count">{p.count} units registered</span>
-                    <span className="link-red" onClick={() => alert(`Editing ${p.name} (frontend demo).`)}>Edit</span>
+            {results.map((product) => {
+              const status = warrantyStatus(
+                product.purchaseDate,
+                product.warrantyDurationMonths,
+              );
+              return (
+                <div className="product-card" key={product.serialNumber}>
+                  <div className="product-thumb">
+                    <HeadphonesIcon width="34" height="34" />
+                  </div>
+                  <div className="product-body">
+                    <div className="pname">{product.modelName}</div>
+                    <div className="pcat">{product.serialNumber}</div>
+                    <div className="product-foot">
+                      <span className="product-count">
+                        {new Date(product.purchaseDate).toLocaleDateString()}{" "}
+                        · {product.warrantyDurationMonths} mo
+                      </span>
+                      <span
+                        className={`status-pill ${
+                          status === "ACTIVE" ? "completed" : "notfound"
+                        }`}
+                      >
+                        {status}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 10,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: "0.75rem",
+                        color: "var(--boat-muted)",
+                      }}
+                    >
+                      <FileIcon />
+                      {product.documents.length} warranty document
+                      {product.documents.length === 1 ? "" : "s"}
+                    </div>
                   </div>
                 </div>
+              );
+            })}
+            {!loading && searched && results.length === 0 && (
+              <div
+                style={{
+                  gridColumn: "1/-1",
+                  textAlign: "center",
+                  color: "var(--boat-muted)",
+                  padding: "24px 0",
+                }}
+              >
+                No product matches that serial number.
               </div>
-            ))}
-            {filtered.length === 0 && (
-              <div style={{ gridColumn: "1/-1", textAlign: "center", color: "var(--boat-muted)", padding: "24px 0" }}>
-                No products match your filters.
+            )}
+            {!searched && !loading && (
+              <div
+                style={{
+                  gridColumn: "1/-1",
+                  textAlign: "center",
+                  color: "var(--boat-muted)",
+                  padding: "24px 0",
+                }}
+              >
+                Enter a serial number to search the registry.
               </div>
             )}
           </div>

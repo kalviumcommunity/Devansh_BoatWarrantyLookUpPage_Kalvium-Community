@@ -1,90 +1,284 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Topbar from "@/components/Topbar";
-import { SearchIcon } from "@/components/Icons";
+import { SearchIcon, PlusIcon } from "@/components/Icons";
 
-const REPAIRS = [
-  { id: "SRV1234567", product: "boAt Rockerz 450", serial: "DT8S12345678", date: "10 Feb 2025", issue: "Sound distortion in left earcup", status: "completed", label: "Completed", center: "boAt Service Center - Mumbai" },
-  { id: "SRV1234568", product: "boAt Airdopes 141", serial: "SN0987654321", date: "09 Feb 2025", issue: "Mic not working", status: "completed", label: "Completed", center: "boAt Service Center - Delhi" },
-  { id: "SRV1234569", product: "boAt Stone 1200", serial: "SN5566778899", date: "08 Feb 2025", issue: "Bluetooth pairing issue", status: "found", label: "In Progress", center: "boAt Service Center - Kochi" },
-  { id: "SRV1234570", product: "boAt Rockerz 550", serial: "SN6677889900", date: "07 Feb 2025", issue: "Sound not working", status: "completed", label: "Completed", center: "boAt Service Center - Pune" },
-  { id: "SRV1234571", product: "boAt Wave Flex", serial: "SN8899001122", date: "05 Feb 2025", issue: "Screen not responding", status: "notfound", label: "Pending", center: "boAt Service Center - Bengaluru" },
-];
+const emptyForm = { repairDate: "", issueDescription: "", serviceCenterCode: "" };
 
 export default function RepairHistoryPage() {
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [serial, setSerial] = useState("");
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return REPAIRS.filter((r) => {
-      const text = `${r.id} ${r.product} ${r.serial} ${r.issue} ${r.center}`.toLowerCase();
-      const matchesText = !q || text.includes(q);
-      const matchesStatus = statusFilter === "all" || r.status === statusFilter;
-      return matchesText && matchesStatus;
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function loadProduct(serialNumber) {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(
+        `/api/admin/products?search=${encodeURIComponent(serialNumber)}`,
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Search failed");
+      if (!data.results?.length) {
+        setProduct(null);
+        setError("No product matches that serial number.");
+      } else {
+        setProduct(data.results[0]);
+      }
+    } catch (err) {
+      setProduct(null);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleSearch(e) {
+    e.preventDefault();
+    const trimmed = serial.trim();
+    if (!trimmed) return;
+    setFormOpen(false);
+    loadProduct(trimmed);
+  }
+
+  function openAddForm() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setFormError("");
+    setFormOpen(true);
+  }
+
+  function openEditForm(record) {
+    setEditingId(record.repairId);
+    setForm({
+      repairDate: record.repairDate.slice(0, 10),
+      issueDescription: record.issueDescription,
+      serviceCenterCode: record.serviceCenterCode,
     });
-  }, [query, statusFilter]);
+    setFormError("");
+    setFormOpen(true);
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true);
+    setFormError("");
+
+    const url = editingId
+      ? `/api/admin/repair-history/${editingId}`
+      : "/api/admin/repair-history";
+    const method = editingId ? "PUT" : "POST";
+
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, serialNumber: product.serialNumber }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Could not save the repair record");
+      }
+
+      setFormOpen(false);
+      await loadProduct(product.serialNumber);
+    } catch (err) {
+      setFormError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <>
-      <Topbar title="Repair History" subtitle="Track service requests across all service centers" />
+      <Topbar
+        title="Repair History"
+        subtitle="Search a product to manage its repair records"
+      />
       <div className="dash-content">
-        <div className="panel">
-          <div className="page-toolbar">
+        <div className="panel" style={{ marginBottom: 22 }}>
+          <form className="page-toolbar" onSubmit={handleSearch}>
             <div className="toolbar-search">
-              <span className="icon"><SearchIcon /></span>
+              <span className="icon">
+                <SearchIcon />
+              </span>
               <input
                 type="text"
-                placeholder="Search by service ID, product, or serial number"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by exact serial number"
+                value={serial}
+                onChange={(e) => setSerial(e.target.value.toUpperCase())}
               />
             </div>
-            <select className="select-chip" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="all">All statuses</option>
-              <option value="completed">Completed</option>
-              <option value="found">In Progress</option>
-              <option value="notfound">Pending</option>
-            </select>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table className="wtable">
-              <thead>
-                <tr><th>Service ID</th><th>Product</th><th>Serial Number</th><th>Request Date</th><th>Issue Reported</th><th>Status</th><th>Service Center</th><th>Details</th></tr>
-              </thead>
-              <tbody>
-                {filtered.map((r) => (
-                  <tr key={r.id + r.issue}>
-                    <td>{r.id}</td>
-                    <td>{r.product}</td>
-                    <td>{r.serial}</td>
-                    <td>{r.date}</td>
-                    <td>{r.issue}</td>
-                    <td><span className={`status-pill ${r.status}`}>{r.label}</span></td>
-                    <td>{r.center}</td>
-                    <td>
-                      <span className="link-red" onClick={() => alert("Repair ticket: " + r.id)}>View</span>
-                    </td>
+            <button type="submit" className="btn btn-outline" disabled={loading}>
+              {loading ? "Searching..." : "Search"}
+            </button>
+            {product && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={openAddForm}
+              >
+                <PlusIcon />
+                Add Repair Entry
+              </button>
+            )}
+          </form>
+
+          {error && (
+            <div className="error-box show" style={{ margin: "0 20px 16px" }}>
+              {error}
+            </div>
+          )}
+
+          {formOpen && product && (
+            <form
+              onSubmit={handleSave}
+              style={{
+                margin: "0 20px 20px",
+                padding: 16,
+                border: "1px solid var(--boat-border)",
+                borderRadius: "var(--radius-md)",
+              }}
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 14,
+                  marginBottom: 14,
+                }}
+              >
+                <div>
+                  <label className="field-label">Repair Date</label>
+                  <input
+                    className="field-input no-icon"
+                    type="date"
+                    value={form.repairDate}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, repairDate: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="field-label">Service Center Code</label>
+                  <input
+                    className="field-input no-icon"
+                    type="text"
+                    value={form.serviceCenterCode}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        serviceCenterCode: e.target.value.toUpperCase(),
+                      }))
+                    }
+                    required
+                  />
+                </div>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label className="field-label">Issue Description</label>
+                <textarea
+                  className="field-input no-icon"
+                  rows={3}
+                  value={form.issueDescription}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, issueDescription: e.target.value }))
+                  }
+                  required
+                />
+              </div>
+              {formError && (
+                <div
+                  className="field-error-text show"
+                  style={{ marginBottom: 12 }}
+                >
+                  {formError}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={saving}
+                >
+                  {saving ? "Saving..." : editingId ? "Update Entry" : "Add Entry"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setFormOpen(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+
+        {product && (
+          <div className="panel">
+            <div className="panel-head">
+              <h3>
+                {product.modelName} · {product.serialNumber}
+              </h3>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table className="wtable">
+                <thead>
+                  <tr>
+                    <th>Repair Date</th>
+                    <th>Issue Reported</th>
+                    <th>Service Center</th>
+                    <th>Logged By</th>
+                    <th>Action</th>
                   </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--boat-muted)", padding: "24px 20px" }}>No results match your filters.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", fontSize: "0.8125rem", color: "var(--boat-muted)" }}>
-            <span>Showing 1 to {filtered.length} of 342 entries</span>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button className="btn btn-outline" style={{ padding: "6px 11px" }}>‹</button>
-              <button className="btn btn-primary" style={{ padding: "6px 12px" }}>1</button>
-              <button className="btn btn-outline" style={{ padding: "6px 12px" }}>2</button>
-              <button className="btn btn-outline" style={{ padding: "6px 12px" }}>3</button>
-              <button className="btn btn-outline" style={{ padding: "6px 11px" }}>›</button>
+                </thead>
+                <tbody>
+                  {product.repairHistory?.map((r) => (
+                    <tr key={r.repairId}>
+                      <td>{new Date(r.repairDate).toLocaleDateString()}</td>
+                      <td>{r.issueDescription}</td>
+                      <td>{r.serviceCenterCode}</td>
+                      <td>{r.createdBy}</td>
+                      <td>
+                        <span
+                          className="link-red"
+                          onClick={() => openEditForm(r)}
+                        >
+                          Edit
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {(!product.repairHistory ||
+                    product.repairHistory.length === 0) && (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        style={{
+                          textAlign: "center",
+                          color: "var(--boat-muted)",
+                          padding: "24px 20px",
+                        }}
+                      >
+                        No repair records yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </>
   );

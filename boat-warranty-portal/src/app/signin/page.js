@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { UserIcon, ShieldIcon, MailIcon, LockIcon, EyeIcon } from "@/components/Icons";
+import {
+  UserIcon,
+  ShieldIcon,
+  MailIcon,
+  LockIcon,
+  EyeIcon,
+} from "@/components/Icons";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -12,6 +18,7 @@ export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState("");
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -26,7 +33,19 @@ export default function SignInPage() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    router.push(accountType === "admin" ? "/dashboard" : "/warranty");
+    setSubmitError("");
+    fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        document.cookie = `token=${data.token}; path=/; max-age=86400`;
+        router.push(accountType === "admin" ? "/dashboard" : "/warranty");
+      })
+      .catch((error) => setSubmitError(error.message));
   }
 
   return (
@@ -50,7 +69,9 @@ export default function SignInPage() {
           </div>
         </div>
 
-        <h1 style={{ fontSize: "1.75rem", margin: "36px 0 26px" }}>Good to see you again!</h1>
+        <h1 style={{ fontSize: "1.75rem", margin: "36px 0 26px" }}>
+          Good to see you again!
+        </h1>
 
         <div className="info-row">
           <div className="info-icon">
@@ -83,13 +104,26 @@ export default function SignInPage() {
               strokeLinecap="round"
             />
             <rect x="34" y="88" width="34" height="52" rx="17" fill="#141416" />
-            <rect x="162" y="88" width="34" height="52" rx="17" fill="#141416" />
+            <rect
+              x="162"
+              y="88"
+              width="34"
+              height="52"
+              rx="17"
+              fill="#141416"
+            />
             <circle cx="51" cy="118" r="4" fill="#3A3A3D" />
             <circle cx="179" cy="118" r="4" fill="#3A3A3D" />
           </svg>
         </div>
 
-        <div style={{ fontSize: "0.75rem", color: "var(--boat-muted)", marginTop: 22 }}>
+        <div
+          style={{
+            fontSize: "0.75rem",
+            color: "var(--boat-muted)",
+            marginTop: 22,
+          }}
+        >
           © 2025 boAt. All rights reserved.
         </div>
       </div>
@@ -98,14 +132,24 @@ export default function SignInPage() {
       <div className="auth-form-side">
         <div className="auth-form-inner">
           <h2 style={{ fontSize: "1.625rem", margin: "0 0 6px" }}>Sign In</h2>
-          <p style={{ color: "var(--boat-muted)", fontSize: "0.875rem", margin: "0 0 26px" }}>
+          <p
+            style={{
+              color: "var(--boat-muted)",
+              fontSize: "0.875rem",
+              margin: "0 0 26px",
+            }}
+          >
             Choose your account type and login
           </p>
 
           <div className="type-toggle">
             <button
               type="button"
-              className={accountType === "user" ? "type-toggle-opt active" : "type-toggle-opt"}
+              className={
+                accountType === "user"
+                  ? "type-toggle-opt active"
+                  : "type-toggle-opt"
+              }
               onClick={() => setAccountType("user")}
             >
               <span className="badge-ic">
@@ -118,7 +162,11 @@ export default function SignInPage() {
             </button>
             <button
               type="button"
-              className={accountType === "admin" ? "type-toggle-opt active" : "type-toggle-opt"}
+              className={
+                accountType === "admin"
+                  ? "type-toggle-opt active"
+                  : "type-toggle-opt"
+              }
               onClick={() => setAccountType("admin")}
             >
               <span className="badge-ic">
@@ -139,14 +187,22 @@ export default function SignInPage() {
                   <MailIcon />
                 </span>
                 <input
-                  className={errors.email ? "field-input field-error" : "field-input"}
+                  className={
+                    errors.email ? "field-input field-error" : "field-input"
+                  }
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={accountType === "admin" ? "Admin@gmail.com" : "User@gmail.com"}
+                  placeholder={
+                    accountType === "admin"
+                      ? "Admin@gmail.com"
+                      : "User@gmail.com"
+                  }
                 />
               </div>
-              {errors.email && <div className="field-error-text show">{errors.email}</div>}
+              {errors.email && (
+                <div className="field-error-text show">{errors.email}</div>
+              )}
             </div>
 
             <div style={{ marginBottom: 8 }}>
@@ -156,32 +212,65 @@ export default function SignInPage() {
                   <LockIcon />
                 </span>
                 <input
-                  className={errors.password ? "field-input pr-icon field-error" : "field-input pr-icon"}
+                  className={
+                    errors.password
+                      ? "field-input pr-icon field-error"
+                      : "field-input pr-icon"
+                  }
                   type={showPwd ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                 />
-                <span className="icon icon-right" onClick={() => setShowPwd((v) => !v)}>
+                <span
+                  className="icon icon-right"
+                  onClick={() => setShowPwd((v) => !v)}
+                >
                   <EyeIcon />
                 </span>
               </div>
-              {errors.password && <div className="field-error-text show">{errors.password}</div>}
+              {errors.password && (
+                <div className="field-error-text show">{errors.password}</div>
+              )}
             </div>
 
             <div style={{ textAlign: "right", marginBottom: 22 }}>
-              <Link href="#" style={{ fontSize: "0.8125rem", color: "var(--boat-red)", fontWeight: 600 }}>
+              <Link
+                href="#"
+                style={{
+                  fontSize: "0.8125rem",
+                  color: "var(--boat-red)",
+                  fontWeight: 600,
+                }}
+              >
                 Forgot Password?
               </Link>
             </div>
 
-            <button type="submit" className="btn btn-primary" style={{ width: "100%" }}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: "100%" }}
+            >
               Sign In
             </button>
+            {submitError && (
+              <div className="field-error-text show">{submitError}</div>
+            )}
 
-            <p style={{ textAlign: "center", fontSize: "0.8125rem", color: "var(--boat-muted)", marginTop: 20 }}>
+            <p
+              style={{
+                textAlign: "center",
+                fontSize: "0.8125rem",
+                color: "var(--boat-muted)",
+                marginTop: 20,
+              }}
+            >
               Don&apos;t have an account?{" "}
-              <Link href="/signup" style={{ color: "var(--boat-red)", fontWeight: 600 }}>
+              <Link
+                href="/signup"
+                style={{ color: "var(--boat-red)", fontWeight: 600 }}
+              >
                 Sign up
               </Link>
             </p>

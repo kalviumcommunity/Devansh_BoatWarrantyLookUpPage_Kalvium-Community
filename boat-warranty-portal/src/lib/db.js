@@ -1,39 +1,74 @@
-import prisma from "./prisma";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
-export function validateSerialNumber(serial) {
-  if (!serial || typeof serial !== "string") return false;
-  const s = serial.trim().toUpperCase();
-  // Basic validation: alphanumeric between 8 and 20 chars
-  return /^[A-Z0-9]{8,20}$/.test(s);
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error("DATABASE_URL is not configured");
+
+const globalForPrisma = globalThis;
+const prisma =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    adapter: new PrismaPg({ connectionString }),
+  });
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+export async function getProductBySerial(serialNumber) {
+  return prisma.productRegistry.findUnique({
+    where: { serialNumber },
+    include: {
+      warrantyDocuments: { where: { deletedAt: null } },
+      repairHistory: true,
+    },
+  });
 }
 
-export async function getProductBySerial(serial) {
-  const s = serial.trim().toUpperCase();
-  return prisma.productRegistry.findUnique({ where: { serialNumber: s } });
-}
-
-export async function getRepairHistory(serial, page = 1, perPage = 5) {
-  const s = serial.trim().toUpperCase();
-  const take = perPage;
-  const skip = (Math.max(1, page) - 1) * perPage;
-
+export async function getRepairHistory(serialNumber, page = 1) {
+  const pageSize = 5;
+  const currentPage = Math.max(1, Number(page) || 1);
+  const where = { serialNumber };
   const [records, total] = await Promise.all([
     prisma.repairHistory.findMany({
-      where: { serialNumber: s },
+      where,
       orderBy: { repairDate: "desc" },
-      take,
-      skip,
+      skip: (currentPage - 1) * pageSize,
+      take: pageSize,
     }),
-    prisma.repairHistory.count({ where: { serialNumber: s } }),
+    prisma.repairHistory.count({ where }),
   ]);
 
-  return { records, total, page: Math.max(1, page), perPage };
+  return { records, total, page: currentPage, pageSize };
 }
 
-export function computeExpiry(purchaseDate, warrantyMonths) {
-  if (!purchaseDate || typeof warrantyMonths !== "number") return null;
-  const d = new Date(purchaseDate);
-  const newMonth = d.getMonth() + warrantyMonths;
-  d.setMonth(newMonth);
-  return d;
+export async function createRepairRecord(data) {
+  return prisma.repairHistory.create({ data });
 }
+
+export async function getRepairRecord(repairId) {
+  return prisma.repairHistory.findUnique({ where: { repairId } });
+}
+
+export async function updateRepairRecord(repairId, data) {
+  return prisma.repairHistory.update({ where: { repairId }, data });
+}
+
+export async function uploadWarrantyDoc(data) {
+  return prisma.warrantyDocument.create({ data });
+}
+
+export async function getWarrantyDocument(documentId) {
+  return prisma.warrantyDocument.findUnique({ where: { documentId } });
+}
+
+export async function replaceWarrantyDoc(documentId, data) {
+  return prisma.warrantyDocument.update({ where: { documentId }, data });
+}
+
+export async function softDeleteWarrantyDoc(documentId) {
+  return prisma.warrantyDocument.update({
+    where: { documentId },
+    data: { deletedAt: new Date() },
+  });
+}
+
+export { prisma };
