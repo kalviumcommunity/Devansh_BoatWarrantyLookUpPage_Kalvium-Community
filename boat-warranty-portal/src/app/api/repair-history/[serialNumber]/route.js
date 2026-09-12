@@ -3,7 +3,7 @@ import { getProductBySerial, getRepairHistory } from "@/lib/db";
 import { validateSerialNumber } from "@/utils/validation";
 
 export async function GET(req, { params }) {
-  const { serialNumber } = params;
+  const { serialNumber } =  await params;
   const url = new URL(req.url);
   const page = parseInt(url.searchParams.get("page") || "1", 10) || 1;
 

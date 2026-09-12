@@ -3,7 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { UserIcon, ShieldIcon, MailIcon, LockIcon, EyeIcon, PhoneIcon } from "@/components/Icons";
+import {
+  UserIcon,
+  ShieldIcon,
+  MailIcon,
+  LockIcon,
+  EyeIcon,
+  PhoneIcon,
+} from "@/components/Icons";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -24,23 +31,62 @@ export default function SignUpPage() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     const nextErrors = {};
 
-    if (form.fullName.trim().length < 2) nextErrors.fullName = "Please enter your full name.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+    if (form.fullName.trim().length < 2) {
+      nextErrors.fullName = "Please enter your full name.";
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       nextErrors.email = "Enter a valid email address.";
-    if (!/^\d{10}$/.test(form.phone.trim()))
+    }
+
+    if (!/^\d{10}$/.test(form.phone.trim())) {
       nextErrors.phone = "Enter a valid 10-digit phone number.";
-    if (form.password.length < 6) nextErrors.password = "Password must be at least 6 characters.";
-    if (form.confirmPassword !== form.password || form.confirmPassword.length === 0)
+    }
+
+    if (form.password.length < 6) {
+      nextErrors.password = "Password must be at least 6 characters.";
+    }
+
+    if (
+      form.confirmPassword !== form.password ||
+      form.confirmPassword.length === 0
+    ) {
       nextErrors.confirmPassword = "Passwords do not match.";
-    if (!form.terms) nextErrors.terms = "You must accept the terms to continue.";
+    }
+
+    if (!form.terms) {
+      nextErrors.terms = "You must accept the terms to continue.";
+    }
 
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
 
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    const response = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fullName: form.fullName,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.error || "Could not create your account.");
+      return;
+    }
+
+    alert("Account created successfully. Please sign in.");
     router.push("/signin");
   }
 
@@ -64,8 +110,17 @@ export default function SignUpPage() {
           </div>
         </div>
 
-        <h1 style={{ fontSize: "1.75rem", margin: "36px 0 8px" }}>Create an account</h1>
-        <p style={{ color: "var(--boat-muted)", fontSize: "0.875rem", margin: 0 }}>
+        <h1 style={{ fontSize: "1.75rem", margin: "36px 0 8px" }}>
+          Create an account
+        </h1>
+
+        <p
+          style={{
+            color: "var(--boat-muted)",
+            fontSize: "0.875rem",
+            margin: 0,
+          }}
+        >
           Join to manage and track your warranty easily
         </p>
 
@@ -77,27 +132,58 @@ export default function SignUpPage() {
             <rect x="132" y="82" width="18" height="34" rx="9" fill="#1C1C1E" />
             <circle cx="79" cy="70" r="16" fill="#1C1C1E" />
             <circle cx="141" cy="70" r="16" fill="#1C1C1E" />
-            <path d="M79 54c8-14 22-14 30 0" stroke="#3A3A3D" strokeWidth="6" fill="none" strokeLinecap="round" />
-            <path d="M141 54c8-14 22-14 30 0" stroke="#3A3A3D" strokeWidth="6" fill="none" strokeLinecap="round" />
+            <path
+              d="M79 54c8-14 22-14 30 0"
+              stroke="#3A3A3D"
+              strokeWidth="6"
+              fill="none"
+              strokeLinecap="round"
+            />
+            <path
+              d="M141 54c8-14 22-14 30 0"
+              stroke="#3A3A3D"
+              strokeWidth="6"
+              fill="none"
+              strokeLinecap="round"
+            />
           </svg>
         </div>
 
-        <div style={{ fontSize: "0.75rem", color: "var(--boat-muted)", marginTop: 22 }}>
+        <div
+          style={{
+            fontSize: "0.75rem",
+            color: "var(--boat-muted)",
+            marginTop: 22,
+          }}
+        >
           © 2025 boAt. All rights reserved.
         </div>
       </div>
 
       <div className="auth-form-side">
         <div className="auth-form-inner">
-          <h2 style={{ fontSize: "1.625rem", margin: "0 0 6px" }}>Sign Up</h2>
-          <p style={{ color: "var(--boat-muted)", fontSize: "0.875rem", margin: "0 0 24px" }}>
+          <h2 style={{ fontSize: "1.625rem", margin: "0 0 6px" }}>
+            Sign Up
+          </h2>
+
+          <p
+            style={{
+              color: "var(--boat-muted)",
+              fontSize: "0.875rem",
+              margin: "0 0 24px",
+            }}
+          >
             Create your account to get started
           </p>
 
           <div className="type-toggle">
             <button
               type="button"
-              className={accountType === "user" ? "type-toggle-opt active" : "type-toggle-opt"}
+              className={
+                accountType === "user"
+                  ? "type-toggle-opt active"
+                  : "type-toggle-opt"
+              }
               onClick={() => setAccountType("user")}
             >
               <span className="badge-ic">
@@ -107,9 +193,14 @@ export default function SignUpPage() {
                 <strong>User</strong>
               </span>
             </button>
+
             <button
               type="button"
-              className={accountType === "admin" ? "type-toggle-opt active" : "type-toggle-opt"}
+              className={
+                accountType === "admin"
+                  ? "type-toggle-opt active"
+                  : "type-toggle-opt"
+              }
               onClick={() => setAccountType("admin")}
             >
               <span className="badge-ic">
@@ -129,14 +220,20 @@ export default function SignUpPage() {
                   <UserIcon width="16" height="16" />
                 </span>
                 <input
-                  className={errors.fullName ? "field-input field-error" : "field-input"}
+                  className={
+                    errors.fullName
+                      ? "field-input field-error"
+                      : "field-input"
+                  }
                   type="text"
                   value={form.fullName}
                   onChange={(e) => update("fullName", e.target.value)}
                   placeholder="Enter your full name"
                 />
               </div>
-              {errors.fullName && <div className="field-error-text show">{errors.fullName}</div>}
+              {errors.fullName && (
+                <div className="field-error-text show">{errors.fullName}</div>
+              )}
             </div>
 
             <div style={{ marginBottom: 16 }}>
@@ -146,14 +243,18 @@ export default function SignUpPage() {
                   <MailIcon />
                 </span>
                 <input
-                  className={errors.email ? "field-input field-error" : "field-input"}
+                  className={
+                    errors.email ? "field-input field-error" : "field-input"
+                  }
                   type="email"
                   value={form.email}
                   onChange={(e) => update("email", e.target.value)}
                   placeholder="Enter your email"
                 />
               </div>
-              {errors.email && <div className="field-error-text show">{errors.email}</div>}
+              {errors.email && (
+                <div className="field-error-text show">{errors.email}</div>
+              )}
             </div>
 
             <div style={{ marginBottom: 16 }}>
@@ -163,14 +264,18 @@ export default function SignUpPage() {
                   <PhoneIcon />
                 </span>
                 <input
-                  className={errors.phone ? "field-input field-error" : "field-input"}
+                  className={
+                    errors.phone ? "field-input field-error" : "field-input"
+                  }
                   type="tel"
                   value={form.phone}
                   onChange={(e) => update("phone", e.target.value)}
                   placeholder="Enter your phone number"
                 />
               </div>
-              {errors.phone && <div className="field-error-text show">{errors.phone}</div>}
+              {errors.phone && (
+                <div className="field-error-text show">{errors.phone}</div>
+              )}
             </div>
 
             <div style={{ marginBottom: 16 }}>
@@ -180,17 +285,26 @@ export default function SignUpPage() {
                   <LockIcon />
                 </span>
                 <input
-                  className={errors.password ? "field-input pr-icon field-error" : "field-input pr-icon"}
+                  className={
+                    errors.password
+                      ? "field-input pr-icon field-error"
+                      : "field-input pr-icon"
+                  }
                   type={showPwd1 ? "text" : "password"}
                   value={form.password}
                   onChange={(e) => update("password", e.target.value)}
                   placeholder="Create a password"
                 />
-                <span className="icon icon-right" onClick={() => setShowPwd1((v) => !v)}>
+                <span
+                  className="icon icon-right"
+                  onClick={() => setShowPwd1((v) => !v)}
+                >
                   <EyeIcon />
                 </span>
               </div>
-              {errors.password && <div className="field-error-text show">{errors.password}</div>}
+              {errors.password && (
+                <div className="field-error-text show">{errors.password}</div>
+              )}
             </div>
 
             <div style={{ marginBottom: 18 }}>
@@ -201,19 +315,26 @@ export default function SignUpPage() {
                 </span>
                 <input
                   className={
-                    errors.confirmPassword ? "field-input pr-icon field-error" : "field-input pr-icon"
+                    errors.confirmPassword
+                      ? "field-input pr-icon field-error"
+                      : "field-input pr-icon"
                   }
                   type={showPwd2 ? "text" : "password"}
                   value={form.confirmPassword}
                   onChange={(e) => update("confirmPassword", e.target.value)}
                   placeholder="Confirm your password"
                 />
-                <span className="icon icon-right" onClick={() => setShowPwd2((v) => !v)}>
+                <span
+                  className="icon icon-right"
+                  onClick={() => setShowPwd2((v) => !v)}
+                >
                   <EyeIcon />
                 </span>
               </div>
               {errors.confirmPassword && (
-                <div className="field-error-text show">{errors.confirmPassword}</div>
+                <div className="field-error-text show">
+                  {errors.confirmPassword}
+                </div>
               )}
             </div>
 
@@ -235,27 +356,51 @@ export default function SignUpPage() {
                 style={{ marginTop: 2 }}
               />
               I agree to the{" "}
-              <Link href="#" style={{ color: "var(--boat-red)", fontWeight: 600 }}>
+              <Link
+                href="#"
+                style={{ color: "var(--boat-red)", fontWeight: 600 }}
+              >
                 Terms &amp; Conditions
               </Link>{" "}
               and{" "}
-              <Link href="#" style={{ color: "var(--boat-red)", fontWeight: 600 }}>
+              <Link
+                href="#"
+                style={{ color: "var(--boat-red)", fontWeight: 600 }}
+              >
                 Privacy Policy
               </Link>
             </label>
+
             {errors.terms && (
-              <div className="field-error-text show" style={{ marginBottom: 14 }}>
+              <div
+                className="field-error-text show"
+                style={{ marginBottom: 14 }}
+              >
                 {errors.terms}
               </div>
             )}
 
-            <button type="submit" className="btn btn-primary" style={{ width: "100%", marginTop: 12 }}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: "100%", marginTop: 12 }}
+            >
               Sign Up
             </button>
 
-            <p style={{ textAlign: "center", fontSize: "0.8125rem", color: "var(--boat-muted)", marginTop: 20 }}>
+            <p
+              style={{
+                textAlign: "center",
+                fontSize: "0.8125rem",
+                color: "var(--boat-muted)",
+                marginTop: 20,
+              }}
+            >
               Already have an account?{" "}
-              <Link href="/signin" style={{ color: "var(--boat-red)", fontWeight: 600 }}>
+              <Link
+                href="/signin"
+                style={{ color: "var(--boat-red)", fontWeight: 600 }}
+              >
                 Sign in
               </Link>
             </p>
